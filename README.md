@@ -1,6 +1,8 @@
 # VR Kanojo Desktop
 
-Desktop mouse and keyboard controls for the original **VR Kanojo** released in 2018.
+**Play the original VR Kanojo (2018) without a VR headset using mouse and keyboard — including native touch, grabbing, hand interaction, WASD movement, and FPS-style mouse-look.**
+
+VR Kanojo Desktop is a no-VR / desktop alternative to the original `VRK_PlayWithoutVR` plugin, expanding its desktop controls with interactive touch and grab support.
 
 **Version:** 1.0.0  
 **Maintainer:** Ferious / FeriousX  
