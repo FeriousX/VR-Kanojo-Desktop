@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{AAA885BD-BFC7-42EC-A957-7A2BD0053FA5}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>VRKanojoDesktop</RootNamespace>
+    <AssemblyName>VRKanojoDesktop</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GameDir Condition=" '$(GameDir)' == '' And '$(VRKANOJO_DIR)' != '' ">$(VRKANOJO_DIR)</GameDir>
+    <GameManagedDir Condition=" '$(GameManagedDir)' == '' And '$(GameDir)' != '' ">$(GameDir)\VRKanojo_Data\Managed</GameManagedDir>
+    <BepInExCoreDir Condition=" '$(BepInExCoreDir)' == '' And '$(GameDir)' != '' ">$(GameDir)\BepInEx\core</BepInExCoreDir>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\bin\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>..\bin\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="0Harmony, Version=2.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>$(BepInExCoreDir)\0Harmony.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>$(GameManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BepInEx, Version=5.4.4.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>$(BepInExCoreDir)\BepInEx.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BepInEx.Harmony, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>$(BepInExCoreDir)\BepInEx.Harmony.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Core" />
+    <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>$(GameManagedDir)\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>$(GameManagedDir)\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="VRKanojoDesktopPlugin.cs" />
+    <Compile Include="GlobalSuppressions.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ResourceUtils.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="crosshair.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <Target Name="ValidateLocalGameReferences" BeforeTargets="ResolveReferences">
+    <Error Condition=" '$(GameDir)' == '' " Text="Set VRKANOJO_DIR or pass /p:GameDir=PATH_TO_VRKANOJO before building. The project references DLLs from your own local VR Kanojo and BepInEx installation." />
+    <Error Condition=" !Exists('$(GameManagedDir)\Assembly-CSharp.dll') " Text="Missing $(GameManagedDir)\Assembly-CSharp.dll. Set GameDir to your VR Kanojo installation folder." />
+    <Error Condition=" !Exists('$(GameManagedDir)\UnityEngine.dll') " Text="Missing $(GameManagedDir)\UnityEngine.dll. Set GameDir to your VR Kanojo installation folder." />
+    <Error Condition=" !Exists('$(GameManagedDir)\UnityEngine.UI.dll') " Text="Missing $(GameManagedDir)\UnityEngine.UI.dll. Set GameDir to your VR Kanojo installation folder." />
+    <Error Condition=" !Exists('$(BepInExCoreDir)\BepInEx.dll') " Text="Missing $(BepInExCoreDir)\BepInEx.dll. Install BepInEx and set GameDir to your VR Kanojo installation folder." />
+    <Error Condition=" !Exists('$(BepInExCoreDir)\0Harmony.dll') " Text="Missing $(BepInExCoreDir)\0Harmony.dll. Install BepInEx and set GameDir to your VR Kanojo installation folder." />
+  </Target>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

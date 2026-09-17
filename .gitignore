@@ -1,0 +1,37 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build/package artifacts
+*.dll
+*.pdb
+*.mdb
+*.zip
+*.7z
+*.nupkg
+packages/
+
+# Game and third-party binary dependencies must not be committed.
+Assembly-CSharp.dll
+UnityEngine.dll
+UnityEngine.UI.dll
+BepInEx.dll
+BepInEx.Harmony.dll
+0Harmony.dll
+VRK_PlayWithoutVR.dll*
+VRKanojoDesktop.dll
+
+# Runtime logs and local test output
+*.log
+LogOutput.log
+output_log.txt
+BepInEx/LogOutput.log
+
+# Local editor/OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
