@@ -4,7 +4,7 @@
 
 VR Kanojo Desktop is a no-VR / desktop alternative to the original `VRK_PlayWithoutVR` plugin, expanding its desktop controls with interactive touch and grab support.
 
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Maintainer:** Ferious / FeriousX  
 **Tested with:** VR Kanojo v1.31
 
@@ -22,7 +22,7 @@ The plugin does not recreate character reactions or object interaction logic. It
 - Space to move up.
 - Left Ctrl to move down.
 - Left Shift for faster movement.
-- FPS-style mouse look.
+- True FPS-style mouse look: rotates the view while preserving the camera's world position.
 - Tab to capture or release the mouse.
 - Escape remains the native game menu key.
 - LMB native touch; click briefly or hold to keep touching.
@@ -111,7 +111,7 @@ Required local reference files:
 
 ## Compatibility
 
-VR Kanojo Desktop v1.0.0 has been runtime-tested with VR Kanojo v1.31. Other versions may have different class names, private fields, input behavior, or interaction internals and are not currently claimed as compatible.
+VR Kanojo Desktop v1.0.1 has been runtime-tested with VR Kanojo v1.31. Other versions may have different class names, private fields, input behavior, or interaction internals and are not currently claimed as compatible.
 
 ## Credits And Upstream
 

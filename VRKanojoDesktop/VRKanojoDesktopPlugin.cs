@@ -1,5 +1,7 @@
 ﻿using System;
 using BepInEx;
+using System.Collections.Generic;
+using System.Reflection.Emit;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -16,7 +18,7 @@ namespace VRKanojoDesktop
     public class VRKanojoDesktopPlugin : BaseUnityPlugin
     {
         public const string Name = "VR Kanojo Desktop";
-        public const string Version = "1.0.0";
+        public const string Version = "1.0.1";
         public const string GUID = "com.ferious.vrkanojodesktop";
 
         private static new ManualLogSource Logger;
@@ -31,6 +33,12 @@ namespace VRKanojoDesktop
 
         private static readonly System.Reflection.MethodInfo IllusionCameraRotateMethod =
             AccessTools.Method(typeof(IllusionCamera), "Rotate", new[] { typeof(Vector3) });
+        private static readonly System.Reflection.MethodInfo CameraCalcPosMethod = AccessTools.Method(typeof(IllusionCamera), "CalcPos");
+        private static readonly System.Reflection.FieldInfo CameraRotationField = AccessTools.Field(typeof(IllusionCamera), "rotate");
+        private static readonly System.Reflection.FieldInfo CameraNowFocusField = AccessTools.Field(typeof(IllusionCamera), "nowFocus");
+        private static readonly System.Reflection.FieldInfo CameraSetFocusField = AccessTools.Field(typeof(IllusionCamera), "setFocus");
+        private static readonly System.Reflection.FieldInfo CameraPrevFocusField = AccessTools.Field(typeof(IllusionCamera), "prevFocus");
+        private static readonly System.Reflection.FieldInfo CameraFocusRateField = AccessTools.Field(typeof(IllusionCamera), "focusIpoRate");
         private static readonly System.Reflection.FieldInfo IllusionCameraButtonStateField =
             AccessTools.Field(typeof(IllusionCamera), "buttonState");
         private static readonly System.Reflection.FieldInfo IllusionCameraDraggingField =
@@ -223,7 +231,7 @@ namespace VRKanojoDesktop
         [HarmonyPatch(typeof(IllusionCamera), "ButtonStateCheck")]
         private static void NeutralizeIllusionCameraDragState(IllusionCamera __instance)
         {
-            if (!_mouseCaptured)
+            if (!OwnsCamera(__instance))
                 return;
 
             IllusionCameraDraggingField?.SetValue(__instance, false);
@@ -242,7 +250,7 @@ namespace VRKanojoDesktop
         [HarmonyPatch(typeof(IllusionCamera), "LateUpdate")]
         private static void SuppressIllusionCameraWheelSpeed(IllusionCamera __instance)
         {
-            if (!_mouseCaptured || IllusionCameraKeySensitivityField == null)
+            if (!OwnsCamera(__instance) || IllusionCameraKeySensitivityField == null)
                 return;
 
             var wheel = Input.GetAxis("Mouse ScrollWheel");
@@ -253,6 +261,88 @@ namespace VRKanojoDesktop
             IllusionCameraKeySensitivityField.SetValue(
                 __instance,
                 keySensitivity - wheel * IllusionCameraWheelKeySensitivityScale);
+        }
+
+        // Gate only this camera's button reads; hand and UI input is untouched.
+        [HarmonyTranspiler]
+        [HarmonyPatch(typeof(IllusionCamera), "LateUpdate")]
+        private static IEnumerable<CodeInstruction> GateCameraMouseButtons(IEnumerable<CodeInstruction> instructions)
+        {
+            var held = AccessTools.Method(typeof(Input), "GetMouseButton", new[] { typeof(int) });
+            var down = AccessTools.Method(typeof(Input), "GetMouseButtonDown", new[] { typeof(int) });
+            foreach (var instruction in instructions)
+            {
+                if (instruction.Calls(held) || instruction.Calls(down))
+                {
+                    var replacement = AccessTools.Method(typeof(VRKanojoDesktopPlugin),
+                        instruction.Calls(held) ? "CameraMouseButton" : "CameraMouseButtonDown");
+                    var loadCamera = new CodeInstruction(OpCodes.Ldarg_0);
+                    loadCamera.labels.AddRange(instruction.labels);
+                    instruction.labels.Clear();
+                    loadCamera.blocks.AddRange(instruction.blocks);
+                    instruction.blocks.Clear();
+                    yield return loadCamera;
+                    instruction.operand = replacement;
+                }
+                yield return instruction;
+            }
+        }
+
+        private static bool OwnsCamera(IllusionCamera camera)
+        {
+            return _mouseCaptured && IsDesktopNoHmdMode() && camera && camera == _illusionCamera;
+        }
+
+        private static bool CameraMouseButton(int button, IllusionCamera camera)
+        {
+            return !OwnsCamera(camera) && Input.GetMouseButton(button);
+        }
+
+        private static bool CameraMouseButtonDown(int button, IllusionCamera camera)
+        {
+            return !OwnsCamera(camera) && Input.GetMouseButtonDown(button);
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Scene), "SetCameraRigPos")]
+        private static void AfterCameraPositionReset() { SynchronizeNativeCameraReset(); }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Scene), "SetCameraRigRot", new[] { typeof(Vector3) })]
+        private static void AfterCameraEulerReset() { SynchronizeNativeCameraReset(); }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Scene), "SetCameraRigRot", new[] { typeof(Quaternion) })]
+        private static void AfterCameraQuaternionReset() { SynchronizeNativeCameraReset(); }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Scene), "ReSetCameraRigPos")]
+        private static void AfterCameraPositionRestore() { SynchronizeNativeCameraReset(); }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Scene), "ReSetCameraRigRot")]
+        private static void AfterCameraRotationRestore() { SynchronizeNativeCameraReset(); }
+
+        private static void SynchronizeNativeCameraReset()
+        {
+            if (!OwnsCamera(_illusionCamera) || !Camera.main)
+                return;
+            if (Camera.main.GetComponentInParent<OVRCameraRig>() == _cameraRig)
+                SynchronizeCameraPose();
+        }
+
+        private static void SynchronizeCameraPose()
+        {
+            // Adopt the native pose instead of restoring angles from a previous scene.
+            var root = _illusionCamera.transform;
+            var position = root.position;
+            CameraRotationField.SetValue(_illusionCamera, root.eulerAngles);
+            var calculated = (Vector3)CameraCalcPosMethod.Invoke(_illusionCamera, null);
+            var focus = (Vector3)CameraNowFocusField.GetValue(_illusionCamera) + position - calculated;
+            CameraNowFocusField.SetValue(_illusionCamera, focus);
+            CameraSetFocusField.SetValue(_illusionCamera, focus);
+            CameraPrevFocusField.SetValue(_illusionCamera, focus);
+            CameraFocusRateField.SetValue(_illusionCamera, 1f);
         }
 
         [HarmonyPrefix]
@@ -360,6 +450,7 @@ namespace VRKanojoDesktop
                 return;
 
             UpdateMouseCapture();
+            ResolveDesktopCamera();
             UpdateMouseLook();
             UpdateVirtualLeftHand();
             UpdateHandDepthIndicator();
@@ -388,7 +479,7 @@ namespace VRKanojoDesktop
 
         private static void UpdateMouseLook()
         {
-            if (!_mouseCaptured || !_illusionCamera || IllusionCameraRotateMethod == null)
+            if (!OwnsCamera(_illusionCamera) || !Camera.main || IllusionCameraRotateMethod == null)
                 return;
 
             var mouseX = Input.GetAxis("Mouse X");
@@ -397,7 +488,34 @@ namespace VRKanojoDesktop
                 return;
 
             var rotation = new Vector3(-mouseY * MouseLookSensitivity, mouseX * MouseLookSensitivity, 0f);
+            var eye = Camera.main.transform;
+            var eyePosition = eye.position;
             IllusionCameraRotateMethod.Invoke(_illusionCamera, new object[] { rotation });
+            // CalcPos includes distance and center offset, and sets root rotation.
+            // Measuring the actual eye includes its offset through the full hierarchy.
+            var root = _illusionCamera.transform;
+            root.position = (Vector3)CameraCalcPosMethod.Invoke(_illusionCamera, null);
+            var correction = eyePosition - eye.position;
+            CameraNowFocusField.SetValue(_illusionCamera, (Vector3)CameraNowFocusField.GetValue(_illusionCamera) + correction);
+            CameraSetFocusField.SetValue(_illusionCamera, (Vector3)CameraSetFocusField.GetValue(_illusionCamera) + correction);
+            CameraPrevFocusField.SetValue(_illusionCamera, (Vector3)CameraPrevFocusField.GetValue(_illusionCamera) + correction);
+            root.position += correction;
+        }
+
+        private static void ResolveDesktopCamera()
+        {
+            if (!IsDesktopNoHmdMode())
+                return;
+            var eye = Camera.main;
+            var rig = eye ? eye.GetComponentInParent<OVRCameraRig>() : null;
+            if (rig == _cameraRig && _illusionCamera)
+                return;
+            _cameraRig = rig;
+            _illusionCamera = rig ? rig.GetComponent<IllusionCamera>() : null;
+            if (rig && !_illusionCamera && _mouseCaptured)
+                _illusionCamera = rig.gameObject.AddComponent<IllusionCamera>();
+            if (OwnsCamera(_illusionCamera))
+                SynchronizeCameraPose();
         }
 
         private static void UpdateVirtualLeftHand()
