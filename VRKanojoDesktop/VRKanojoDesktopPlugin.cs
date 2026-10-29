@@ -18,7 +18,7 @@ namespace VRKanojoDesktop
     public class VRKanojoDesktopPlugin : BaseUnityPlugin
     {
         public const string Name = "VR Kanojo Desktop";
-        public const string Version = "1.0.2";
+        public const string Version = "1.0.3";
         public const string GUID = "com.ferious.vrkanojodesktop";
 
         private static new ManualLogSource Logger;
@@ -26,6 +26,8 @@ namespace VRKanojoDesktop
         private static OVRCameraRig _cameraRig;
         private static IllusionCamera _illusionCamera;
         private static bool _mouseCaptured;
+        // Capture intent survives focus loss; wait for Unity's focus callback before locking.
+        private static bool _applicationHasFocus;
         private static Hand _virtualLeftHand;
         private static TrackedController _virtualLeftController;
         private static Transform _virtualLeftTrackTrans;
@@ -432,12 +434,26 @@ namespace VRKanojoDesktop
 
         private void OnApplicationFocus(bool hasFocus)
         {
-            if (!VRDevice.isPresent)
-            {
-                // Fix lockState getting reset after losing focus
-                Cursor.lockState = hasFocus && _mouseCaptured ? CursorLockMode.Locked : CursorLockMode.None;
-                Cursor.visible = !hasFocus || !_mouseCaptured;
-            }
+            _applicationHasFocus = hasFocus;
+            if (_mouseCaptured && IsDesktopNoHmdMode())
+                ApplyCursorCapture(IsMouseCaptureActive());
+        }
+
+        private void OnDisable()
+        {
+            if (_mouseCaptured && IsDesktopNoHmdMode())
+                ApplyCursorCapture(false);
+        }
+
+        private void OnApplicationQuit()
+        {
+            OnDisable();
+        }
+
+        private void LateUpdate()
+        {
+            // Native Update handlers can change cursor state after our Update.
+            RestoreMouseCapture();
         }
 
         private static CanvasGroup _cursorCg;
@@ -446,10 +462,11 @@ namespace VRKanojoDesktop
 
         private void Update()
         {
+            // Capture recovery must not depend on the HUD surviving a scene change.
+            UpdateMouseCapture();
             if (!_cursorCg)
                 return;
 
-            UpdateMouseCapture();
             ResolveDesktopCamera();
             UpdateMouseLook();
             UpdateVirtualLeftHand();
@@ -465,21 +482,48 @@ namespace VRKanojoDesktop
 
         private static void UpdateMouseCapture()
         {
+            if (!_applicationHasFocus || !IsDesktopNoHmdMode())
+                return;
+
             if (Input.GetKeyDown(KeyCode.Tab))
                 SetMouseCaptured(!_mouseCaptured);
+
+            RestoreMouseCapture();
         }
 
         private static void SetMouseCaptured(bool captured)
         {
             _mouseCaptured = captured;
-            Cursor.lockState = captured ? CursorLockMode.Locked : CursorLockMode.None;
-            Cursor.visible = !captured;
+            if (IsDesktopNoHmdMode())
+                ApplyCursorCapture(IsMouseCaptureActive());
             UpdateHandDepthIndicator();
+        }
+
+        private static bool IsMouseCaptureActive()
+        {
+            return _mouseCaptured && _applicationHasFocus && Instance &&
+                   Instance.isActiveAndEnabled && IsDesktopNoHmdMode();
+        }
+
+        private static void RestoreMouseCapture()
+        {
+            // Do not fight manual Tab release, background windows, or a disabled plugin.
+            if (IsMouseCaptureActive())
+                ApplyCursorCapture(true);
+        }
+
+        private static void ApplyCursorCapture(bool captured)
+        {
+            var desiredLock = captured ? CursorLockMode.Locked : CursorLockMode.None;
+            if (Cursor.lockState != desiredLock)
+                Cursor.lockState = desiredLock;
+            if (Cursor.visible == captured)
+                Cursor.visible = !captured;
         }
 
         private static void UpdateMouseLook()
         {
-            if (!OwnsCamera(_illusionCamera) || !Camera.main || IllusionCameraRotateMethod == null)
+            if (!IsMouseCaptureActive() || !OwnsCamera(_illusionCamera) || !Camera.main || IllusionCameraRotateMethod == null)
                 return;
 
             var mouseX = Input.GetAxis("Mouse X");
@@ -520,7 +564,7 @@ namespace VRKanojoDesktop
 
         private static void UpdateVirtualLeftHand()
         {
-            if (!_mouseCaptured)
+            if (!IsMouseCaptureActive())
             {
                 SetVirtualLeftHandInteractionVolumes(false);
                 return;
@@ -586,7 +630,7 @@ namespace VRKanojoDesktop
                 _virtualLeftHand = hand;
                 _virtualLeftController = controller;
                 _virtualLeftTrackTrans = controller.TrackTrans;
-                SetVirtualLeftHandInteractionVolumes(_mouseCaptured);
+                SetVirtualLeftHandInteractionVolumes(IsMouseCaptureActive());
                 Logger.LogDebug("Desktop virtual left hand using " + hand.name + " -> " + _virtualLeftTrackTrans.name + ".");
                 return true;
             }
@@ -609,12 +653,12 @@ namespace VRKanojoDesktop
 
         private static bool IsVirtualLeftTouchEnabled()
         {
-            return _mouseCaptured && Input.GetMouseButton(0);
+            return IsMouseCaptureActive() && Input.GetMouseButton(0);
         }
 
         private static bool IsVirtualLeftGrabEnabled()
         {
-            return _mouseCaptured && Input.GetMouseButton(1);
+            return IsMouseCaptureActive() && Input.GetMouseButton(1);
         }
 
         private static void SetVirtualLeftHandInteractionVolumes(bool enabled)

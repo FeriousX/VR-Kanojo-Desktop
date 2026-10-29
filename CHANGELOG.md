@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.3
+
+- Improved FPS mouse capture reliability and fixed Windows cursor escaping during gameplay.
+- Improved cursor-lock recovery after application focus changes.
+- Preserved 6-meter virtual-hand reach and existing controls.
+- Manually tested with the original VR Kanojo v1.31.
+
 ## v1.0.2
 
 - Increased maximum virtual-hand depth from 2.00 m to 6.00 m.

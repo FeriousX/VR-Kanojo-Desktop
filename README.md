@@ -4,7 +4,7 @@
 
 VR Kanojo Desktop is a no-VR / desktop alternative to the original `VRK_PlayWithoutVR` plugin, expanding its desktop controls with interactive touch and grab support.
 
-**Version:** 1.0.2  
+**Version:** 1.0.3
 **Maintainer:** Ferious / FeriousX  
 **Tested with:** VR Kanojo v1.31
 
@@ -23,7 +23,7 @@ The plugin does not recreate character reactions or object interaction logic. It
 - Left Ctrl to move down.
 - Left Shift for faster movement.
 - True FPS-style mouse look: rotates the view while preserving the camera's world position.
-- Tab to capture or release the mouse.
+- Tab to capture or release the mouse; capture is restored when focus returns.
 - Escape remains the native game menu key.
 - LMB native touch; click briefly or hold to keep touching.
 - RMB native grab; hold to grab and release to drop.
@@ -49,7 +49,7 @@ The plugin does not recreate character reactions or object interaction logic. It
 | Release RMB | Release grabbed object |
 | Mouse wheel | Adjust virtual hand distance |
 
-The current virtual hand distance is shown below the crosshair. Version 1.0.2 increases the maximum reach from 2.00 m to 6.00 m for native touch and grabbing, including scrolling while holding objects. The minimum reach and scroll sensitivity are unchanged.
+The current virtual hand distance is shown below the crosshair. Version 1.0.2 increased the maximum reach from 2.00 m to 6.00 m for native touch and grabbing, including scrolling while holding objects. Version 1.0.3 preserves the 6.00 m reach, minimum reach, scroll sensitivity, and existing controls while improving cursor capture reliability and recovery after focus changes.
 
 ## Requirements
 
@@ -111,7 +111,7 @@ Required local reference files:
 
 ## Compatibility
 
-VR Kanojo Desktop v1.0.2 supports the original VR Kanojo (2018). The v1.0.2 binary-patched DLL, which increases maximum virtual-hand reach to 6 meters, has been manually tested and confirmed working with VR Kanojo v1.31. This DLL is patched from v1.0.1, not a clean source compilation. Other game versions remain untested and unverified. The newer VR-Kanojo (2025) is not supported.
+VR Kanojo Desktop v1.0.3 supports the original VR Kanojo (2018). Version 1.0.3 has been manually tested and confirmed working with VR Kanojo v1.31. Other game versions remain untested and unverified. The newer VR-Kanojo (2025) is not supported.
 
 ## Credits And Upstream
 
