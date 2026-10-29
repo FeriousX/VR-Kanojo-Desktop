@@ -18,7 +18,7 @@ namespace VRKanojoDesktop
     public class VRKanojoDesktopPlugin : BaseUnityPlugin
     {
         public const string Name = "VR Kanojo Desktop";
-        public const string Version = "1.0.1";
+        public const string Version = "1.0.2";
         public const string GUID = "com.ferious.vrkanojodesktop";
 
         private static new ManualLogSource Logger;
@@ -64,7 +64,7 @@ namespace VRKanojoDesktop
         private const float MouseLookSensitivity = 2.25f;
         private const float DefaultVirtualHandDepth = 1f;
         private const float MinVirtualHandDepth = 0.15f;
-        private const float MaxVirtualHandDepth = 2f;
+        private const float MaxVirtualHandDepth = 6f;
         private const float VirtualHandWheelSensitivity = 0.75f;
         private const float IllusionCameraWheelKeySensitivityScale = 0.01f;
         private static bool _loggedOvrDebugInfoSuppressed;

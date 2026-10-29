@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.2
+
+- Increased maximum virtual-hand depth from 2.00 m to 6.00 m.
+
 ## v1.0.1
 
 - Fixed mouse-look orbiting around the IllusionCamera focus/pivot.
