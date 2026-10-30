@@ -1,15 +1,17 @@
 # Changelog
 
-## v1.0.4 (Unreleased)
+## v1.0.4 (2026-10-30)
 
 - Improved physical virtual-hand tracking after desktop camera rotation, retaining native interaction and grab systems.
 - Separated wheel controls: Scroll for 0.15–6.00 m hand depth, Shift + Scroll for the requested Fist setting, and Alt + Scroll for native action speed and supported wheel-based transitions. Alt takes priority over Shift.
 - Removed Shift sprint; camera movement uses normal speed.
-- Added the fading `Fist: XX%` requested-setting indicator. The percentage is confirmed working; visible physical finger clenching did not work in the user's gameplay tests and remains a known limitation.
+- Added the fading `Fist: XX%` requested-setting indicator. The percentage is confirmed working; visible physical finger clenching did not work in gameplay testing and remains a known limitation.
 - Removed experimental Q/T/E action and scene shortcuts, their optional Harmony registrations, and shortcut-specific diagnostics. Native LMB/RMB and scene-progression pathways remain in place; no scene-transition fix is claimed.
 - Retained core Harmony registration verification and explicit startup failure logging, removing the optional shortcut path responsible for the earlier invalid wrapper IL failure.
-- Restored a temporary in-game startup controls guide after desktop camera setup, independent of console/Message Center timing, without duplicate message overlays. Expanded README notes on state-dependent actions, wheel modes, and native finishing requirements.
-- Prepared a clean development build for manual regression testing; v1.0.4 has not been published.
+- Restored a temporary in-game startup controls guide after desktop camera setup, independent of console/Message Center timing, without duplicate message overlays.
+- Expanded README documentation covering state-dependent interactions, wheel modes, installation, compatibility, and native finishing requirements.
+- Manually tested camera movement, mouse interactions, native grabbing, hand depth, wheel modifiers, Fist indicator, and startup-guide visibility.
+- **Officially released on October 30, 2026.** General scene-progression improvements and visible finger animation remain unresolved.
 
 ## v1.0.3
 

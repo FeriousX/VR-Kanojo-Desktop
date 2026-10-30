@@ -2,8 +2,7 @@
 
 Play the **original VR Kanojo (2018)** with a mouse and keyboard, using the game's native interaction systems without a VR headset.
 
-- **Development version:** v1.0.4 released
-- **Latest published stable version:** v1.0.3
+- **Latest published stable version:** v1.0.4
 - **Tested game:** VR Kanojo v1.31
 - **Maintainer:** Ferious / FeriousX
 
@@ -23,19 +22,20 @@ This project is a modified derivative of ManlyMarco's `VRK_PlayWithoutVR` plugin
 - Desktop-mode suppression of the Oculus/OVR debug HUD.
 - Core Harmony patch registration checks with explicit startup error logging.
 
-The Fist indicator shows a **requested setting**. Visible finger clenching has not worked in the user's gameplay tests; see [Known limitations](#known-limitations).
+The Fist indicator shows a **requested setting**. Visible finger clenching has not worked in gameplay testing; see [Known limitations](#known-limitations).
 
 ## Installation
 
 1. Use a legally obtained copy of the original VR Kanojo and an existing BepInEx setup compatible with that game. This plugin does not install BepInEx or the HF Patch.
 2. Close the game and back up your current `VRKanojoDesktop.dll` before replacing it.
-3. Copy the plugin DLL into:
+3. Download `VRKanojoDesktop.dll` from the [latest release](https://github.com/FeriousX/VR-Kanojo-Desktop/releases/latest).
+4. Copy the plugin DLL into:
 
    ```text
    VRKanojo\BepInEx\plugins\VRKanojoDesktop.dll
    ```
 
-4. Start the game without an HMD connected.
+5. Start the game without an HMD connected.
 
 Install only one copy of this plugin. Do not load `VRK_PlayWithoutVR.dll` alongside it: the plugins overlap and patch many of the same systems. Keep a known-working DLL when testing development builds.
 
@@ -101,7 +101,7 @@ The original startup instructions relied on BepInEx logging and a separate Messa
 
 ## Improvements since v1.0.3
 
-The unreleased **v1.0.4 development build** includes the following improvements:
+**Version v1.0.4** introduces the following improvements:
 
 - Improved virtual-hand tracking after camera rotation by synchronizing with the desktop-controlled camera's final `LateUpdate()` pose.
 - Separated ordinary, Shift-modified, and Alt-modified scrolling.
@@ -113,13 +113,15 @@ The unreleased **v1.0.4 development build** includes the following improvements:
 - Replaced the previous message-based startup instructions with a temporary, independent in-game controls guide.
 - Improved documentation covering native interactions, wheel controls, and gameplay limitations.
 
-The v1.0.4 development build has been **manually tested** for camera movement, mouse controls, native interactions, wheel controls, and startup-guide visibility. General scene-transition behavior and visible finger animation remain unresolved.
+The v1.0.4 build was **manually tested** for camera movement, mouse controls, native interactions, wheel controls, and startup-guide visibility. General scene-transition behavior and visible finger animation remain unresolved.
 
-These improvements have not yet been published as an official v1.0.4 release.
+**Version v1.0.4 was officially released on October 30, 2026.**
+
+See the [v1.0.4 release](https://github.com/FeriousX/VR-Kanojo-Desktop/releases/tag/v1.0.4) for the downloadable DLL, release notes, and SHA-256 checksum.
 
 ## Known limitations
 
-- **Visible finger clenching:** Shift + Scroll changes the requested Fist percentage, but the physical hands have not visibly clenched or unclenched in user testing. Physical hands can be hidden or inactive, native grip animations may take priority, and native gaze-hand models use separate Animators. The displayed percentage does not measure actual rendered finger movement.
+- **Visible finger clenching:** Shift + Scroll changes the requested Fist percentage, but the physical hands have not visibly clenched or unclenched in testing. Physical hands can be hidden or inactive, native grip animations may take priority, and native gaze-hand models use separate Animators. The displayed percentage does not measure actual rendered finger movement.
 - **Scene progression:** Action start, stop, finishing, restarting, and exiting are different operations. Their availability depends on the scene, active controller, animation state, dialogue, and story/replay conditions. No general scene-transition fix is claimed.
 - **Interaction availability:** Native gaze interactions and physical controller grabbing are separate systems. Not every target or scene supports identical interaction behavior.
 - **Other native wheel consumers:** Wheel separation targets the native action-speed handler. Other wheel-based controls, including certain menus or UI components, may retain their original behavior.
@@ -133,7 +135,7 @@ These improvements have not yet been published as an official v1.0.4 release.
 - **Framework target:** .NET Framework 3.5 / CLR 2.0.
 - **Build platform:** AnyCPU.
 
-Published v1.0.3 was manually tested with VR Kanojo v1.31. Subsequent experimental testing established the working camera movement, virtual-hand tracking, interactions, wheel modes, and Fist indicator included in the v1.0.4 development build.
+Published v1.0.3 was manually tested with VR Kanojo v1.31. Subsequent testing established the working camera movement, virtual-hand tracking, interactions, wheel modes, and Fist indicator included in v1.0.4.
 
 This repository does not include the game, proprietary game/Unity assemblies, BepInEx binaries, or game assets.
 
