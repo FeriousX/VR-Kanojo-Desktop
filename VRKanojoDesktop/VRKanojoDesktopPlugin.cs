@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using BepInEx;
 using System.Collections.Generic;
 using System.Reflection.Emit;
@@ -18,7 +18,7 @@ namespace VRKanojoDesktop
     public class VRKanojoDesktopPlugin : BaseUnityPlugin
     {
         public const string Name = "VR Kanojo Desktop";
-        public const string Version = "1.0.3";
+        public const string Version = "1.0.4";
         public const string GUID = "com.ferious.vrkanojodesktop";
 
         private static new ManualLogSource Logger;
@@ -32,6 +32,10 @@ namespace VRKanojoDesktop
         private static TrackedController _virtualLeftController;
         private static Transform _virtualLeftTrackTrans;
         private static float _virtualHandDepth = DefaultVirtualHandDepth;
+        private static float _manualPhysicalHandFlex;
+        private static bool _manualPhysicalHandFlexEnabled;
+        // Legacy wheel input is typically 0.1 per notch: 0.05 flex per notch.
+        private const float PhysicalHandFlexWheelSensitivity = 0.5f;
 
         private static readonly System.Reflection.MethodInfo IllusionCameraRotateMethod =
             AccessTools.Method(typeof(IllusionCamera), "Rotate", new[] { typeof(Vector3) });
@@ -62,7 +66,7 @@ namespace VRKanojoDesktop
         private static readonly System.Reflection.FieldInfo VrkOvrDebugInfoShowVRVarsField =
             VrkOvrDebugInfoType != null ? AccessTools.Field(VrkOvrDebugInfoType, "showVRVars") : null;
 
-        private const float FastMoveMultiplier = 3f;
+
         private const float MouseLookSensitivity = 2.25f;
         private const float DefaultVirtualHandDepth = 1f;
         private const float MinVirtualHandDepth = 0.15f;
@@ -77,8 +81,15 @@ namespace VRKanojoDesktop
             Instance = this;
 
             var harmony = new Harmony(GUID);
-            harmony.PatchAll(typeof(VRKanojoDesktopPlugin));
+            Logger.LogInfo("Beginning core Harmony patch registration");
+            try { harmony.PatchAll(typeof(VRKanojoDesktopPlugin)); }
+            catch (Exception ex)
+            {
+                Logger.LogError("Core Harmony patch registration failed: " + ex);
+                throw;
+            }
             PatchVrkOvrDebugInfo(harmony);
+            VerifyCorePatchRegistration();
 
             enabled = false;
         }
@@ -174,35 +185,61 @@ namespace VRKanojoDesktop
             }
         }
 
+        private const string DesktopControlGuide =
+            "MOVEMENT\nWASD: Move camera | Mouse: Look\nSpace: Up | Left Ctrl: Down\n\n" +
+            "CAMERA / MENU\nTab: Capture/release mouse | Esc: Native menu\n\n" +
+            "INTERACTION (scene/state dependent)\nLMB / RMB: Click to touch/grab; click again to release\n" +
+            "Action scenes: LMB starts/continues | RMB stops/finishes\n\n" +
+            "MOUSE WHEEL\nScroll: Hand depth (0.15-6.00 m)\n" +
+            "Shift+Scroll: Requested Fist (0-100%)\nAlt+Scroll: Adjust character action speed/pace\n\n" +
+            "Native finishing conditions still apply. Full details: README.";
+        private float _controlGuideStarted = float.NegativeInfinity;
+        private GUIStyle _controlGuideStyle;
+
         private static void LogDesktopControlGuide()
         {
-            Logger.LogMessage("No HMD detected - Desktop Mode");
-            Logger.LogMessage("");
-            Logger.LogMessage("Movement");
-            Logger.LogMessage("W / A / S / D  - Move");
-            Logger.LogMessage("Space          - Move Up");
-            Logger.LogMessage("Left Ctrl      - Move Down");
-            Logger.LogMessage("Left Shift     - Move Faster");
-            Logger.LogMessage("");
-            Logger.LogMessage("Camera");
-            Logger.LogMessage("Mouse          - Look Around");
-            Logger.LogMessage("Tab            - Capture / Release Mouse");
-            Logger.LogMessage("Esc            - Game Menu");
-            Logger.LogMessage("");
-            Logger.LogMessage("Interaction");
-            Logger.LogMessage("LMB            - Touch / Hold to Continue Touching");
-            Logger.LogMessage("RMB            - Grab / Hold");
-            Logger.LogMessage("Mouse Wheel    - Adjust Hand Distance");
-            Logger.LogMessage("Release RMB    - Release Grabbed Object");
-            Logger.LogMessage("");
-            Logger.LogMessage("The current hand distance is shown below the crosshair.");
+            // Info stays in the log without duplicating our guide in Message Center.
+            Logger.LogInfo(DesktopControlGuide);
+        }
+
+        private void OnGUI()
+        {
+            if (!IsDesktopNoHmdMode() || !_applicationHasFocus || !_cameraRig || !_illusionCamera)
+                return;
+            if (float.IsNegativeInfinity(_controlGuideStarted))
+                _controlGuideStarted = Time.unscaledTime;
+            var elapsed = Time.unscaledTime - _controlGuideStarted;
+            if (elapsed >= 20f) return;
+            if (_controlGuideStyle == null)
+            {
+                _controlGuideStyle = new GUIStyle(GUI.skin.label);
+                _controlGuideStyle.wordWrap = true;
+                _controlGuideStyle.richText = false;
+                _controlGuideStyle.normal.textColor = Color.white;
+            }
+            _controlGuideStyle.fontSize = Mathf.Clamp(Screen.height / 60, 12, 18);
+            var width = Mathf.Min(480f, Screen.width * 0.42f);
+            var content = new GUIContent(DesktopControlGuide);
+            var height = _controlGuideStyle.CalcHeight(content, width - 24f) + 24f;
+            // Fit smaller windows without extending into the center aiming HUD.
+            while (height > Screen.height - 32f && _controlGuideStyle.fontSize > 8)
+            {
+                _controlGuideStyle.fontSize--;
+                height = _controlGuideStyle.CalcHeight(content, width - 24f) + 24f;
+            }
+            var previousColor = GUI.color;
+            GUI.color = new Color(previousColor.r, previousColor.g, previousColor.b,
+                previousColor.a * Mathf.Clamp01(20f - elapsed));
+            GUI.Box(new Rect(16f, 16f, width, height), GUIContent.none);
+            GUI.Label(new Rect(28f, 28f, width - 24f, height - 24f), content, _controlGuideStyle);
+            GUI.color = previousColor;
         }
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(IllusionCamera), "KeyInput_Value")]
         private static void RemapIllusionCameraMovementKeys(ref float move, ref KeyCode addKey, ref KeyCode subKey)
         {
-            var isMovementPair = IsIllusionCameraMovementPair(addKey, subKey);
+
 
             if (addKey == KeyCode.UpArrow && Input.GetKey(KeyCode.W))
                 addKey = KeyCode.W;
@@ -218,15 +255,7 @@ namespace VRKanojoDesktop
             else if (subKey == KeyCode.PageDown && Input.GetKey(KeyCode.LeftControl))
                 subKey = KeyCode.LeftControl;
 
-            if (isMovementPair && Input.GetKey(KeyCode.LeftShift))
-                move *= FastMoveMultiplier;
-        }
 
-        private static bool IsIllusionCameraMovementPair(KeyCode addKey, KeyCode subKey)
-        {
-            return addKey == KeyCode.UpArrow && subKey == KeyCode.DownArrow ||
-                   addKey == KeyCode.RightArrow && subKey == KeyCode.LeftArrow ||
-                   addKey == KeyCode.PageUp && subKey == KeyCode.PageDown;
         }
 
         [HarmonyPostfix]
@@ -454,16 +483,46 @@ namespace VRKanojoDesktop
         {
             // Native Update handlers can change cursor state after our Update.
             RestoreMouseCapture();
+            if (Time.unscaledTime >= _flexReportAt)
+            {
+                _flexReportAt = float.PositiveInfinity;
+                Logger.LogInfo("[PhysicalFlex] requested=" + _manualPhysicalHandFlex.ToString("0.00") +
+                    "; L=" + RecentPhysicalFlexStatus(0) + "; R=" + RecentPhysicalFlexStatus(1) +
+                    ". Requested setting is not proof of visible animation.");
+            }
         }
 
+        private static string RecentPhysicalFlexStatus(int side)
+        {
+            foreach (Hand hand in UnityEngine.Object.FindObjectsOfType(typeof(Hand)))
+            {
+                if ((hand.Handedness == Hand.HANDEDNESS.L ? 0 : 1) != side) continue;
+                var animator = AccessTools.Field(typeof(Hand), "m_animator").GetValue(hand) as Animator;
+                var anchor = AccessTools.Field(typeof(Hand), "m_handAnchor").GetValue(hand) as GameObject;
+                var visible = (bool)AccessTools.Field(typeof(Hand), "m_handVisible").GetValue(hand);
+                if (!animator || !animator.runtimeAnimatorController) return "Animator unavailable";
+                if (!visible || !anchor || !anchor.activeInHierarchy || !animator.isActiveAndEnabled)
+                    return "physical model hidden/inactive; gaze hands use different Animators";
+                var recent = Time.frameCount - PhysicalFlexStatusFrame[side] <= 2;
+                return (recent ? PhysicalFlexStatus[side] : "native animator update not observed") +
+                    "; sampled Flex=" + animator.GetFloat("Flex").ToString("0.00");
+            }
+            return "physical Hand not found";
+        }
         private static CanvasGroup _cursorCg;
         private static Text _handDepthText;
+        private static Text _fistText;
+        private static float _lastFlexAdjustment = float.NegativeInfinity;
+        private static float _flexReportAt = float.PositiveInfinity;
+        private static readonly string[] PhysicalFlexStatus = { "no recent native animation update", "no recent native animation update" };
+        private static readonly int[] PhysicalFlexStatusFrame = { -100, -100 };
         private float _inactiveTime = 5;
 
         private void Update()
         {
             // Capture recovery must not depend on the HUD surviving a scene change.
             UpdateMouseCapture();
+            UpdateVirtualHandWheel();
             if (!_cursorCg)
                 return;
 
@@ -478,6 +537,7 @@ namespace VRKanojoDesktop
             _inactiveTime += Time.deltaTime;
 
             _cursorCg.alpha = Mathf.Clamp01(1f - (_inactiveTime - 4));
+            UpdateFistIndicator();
         }
 
         private static void UpdateMouseCapture()
@@ -562,6 +622,127 @@ namespace VRKanojoDesktop
                 SynchronizeCameraPose();
         }
 
+        private static System.Reflection.MethodInfo PluginPatch(string name)
+        {
+            return AccessTools.Method(typeof(VRKanojoDesktopPlugin), name);
+        }
+
+        private static bool HasRegisteredPatch(System.Reflection.MethodBase target, string name, string owner)
+        {
+            var info = target != null ? Harmony.GetPatchInfo(target) : null;
+            var method = PluginPatch(name);
+            if (info == null || method == null) return false;
+            foreach (var group in new[] { info.Prefixes, info.Postfixes, info.Transpilers, info.Finalizers })
+                foreach (var patch in group)
+                    if (patch.owner == owner && patch.PatchMethod == method) return true;
+            return false;
+        }
+
+        private static void VerifyCorePatchRegistration()
+        {
+            var targets = new[] {
+                AccessTools.Method(typeof(IllusionCamera), "LateUpdate"),
+                AccessTools.Method(typeof(IllusionCamera), "LateUpdate"),
+                AccessTools.Method(typeof(IllusionCamera), "LateUpdate"),
+                AccessTools.Method(typeof(IllusionCamera), "KeyInput_Value"),
+                AccessTools.Method(typeof(Hand), "UpdateAnimStates"),
+                AccessTools.Method(typeof(Hand), "OnTriggerEnter"),
+                AccessTools.Method(typeof(Hand), "OnTriggerStay"),
+                AccessTools.Method(typeof(TrackedController), "get_GripTrigger"),
+                AccessTools.Method(typeof(VK_Input), "H_SpeedChange", new[] { typeof(float) }),
+                AccessTools.Method(typeof(LogoScene), "Start") };
+            var names = new[] { "AfterDesktopCameraLateUpdate", "SuppressIllusionCameraWheelSpeed", "GateCameraMouseButtons",
+                "RemapIllusionCameraMovementKeys", "ApplyManualPhysicalHandFlex", "GateVirtualLeftHandTriggerEnter",
+                "GateVirtualLeftHandTriggerStay", "SubstituteDesktopLeftGrip", "GateNativeActionSpeedWheel", "AllowNoHmdPatch2" };
+            for (var i = 0; i < targets.Length; i++)
+            {
+                var ok = HasRegisteredPatch(targets[i], names[i], GUID);
+                Logger.LogInfo("Core " + names[i] + " registered=" + ok);
+                if (!ok) throw new InvalidOperationException("Required core patch missing: " + names[i]);
+            }
+            Logger.LogInfo("Core registration completed.");
+        }
+        private static bool IsActionSpeedModifierHeld()
+        {
+            return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+        }
+
+        [HarmonyTranspiler]
+        [HarmonyPatch(typeof(VK_Input), "H_SpeedChange", new[] { typeof(float) })]
+        private static IEnumerable<CodeInstruction> GateNativeActionSpeedWheel(IEnumerable<CodeInstruction> instructions)
+        {
+            var code = new List<CodeInstruction>(instructions);
+            var getAxis = AccessTools.Method(typeof(Input), "GetAxis", new[] { typeof(string) });
+            var replacement = AccessTools.Method(typeof(VRKanojoDesktopPlugin), "ReadNativeActionSpeedAxis");
+            var matches = 0;
+            for (var i = 1; i < code.Count; i++)
+            {
+                if (code[i].Calls(getAxis) && code[i - 1].opcode == OpCodes.Ldstr &&
+                    (string)code[i - 1].operand == "Mouse ScrollWheel")
+                {
+                    code[i].operand = replacement;
+                    matches++;
+                }
+            }
+            // Refuse an unexpected game implementation rather than partially changing input.
+            if (matches != 1)
+                throw new InvalidOperationException("Expected one native action-speed wheel read; found " + matches);
+            return code;
+        }
+
+        private static float ReadNativeActionSpeedAxis(string axis)
+        {
+            // Gate only this native mouse-wheel contribution; controller input is unchanged.
+            if (!Instance || !Instance.isActiveAndEnabled || !IsDesktopNoHmdMode())
+                return Input.GetAxis(axis);
+            return IsMouseCaptureActive() && IsActionSpeedModifierHeld() ? Input.GetAxis(axis) : 0f;
+        }
+        private static void UpdateVirtualHandWheel()
+        {
+            if (!IsMouseCaptureActive())
+                return;
+            if (IsActionSpeedModifierHeld()) return;
+            var wheel = Input.GetAxis("Mouse ScrollWheel");
+            if (Mathf.Approximately(wheel, 0f))
+                return;
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+            {
+                _manualPhysicalHandFlex = Mathf.Clamp01(
+                    _manualPhysicalHandFlex + wheel * PhysicalHandFlexWheelSensitivity);
+                _manualPhysicalHandFlexEnabled = true;
+                _lastFlexAdjustment = Time.unscaledTime;
+                _flexReportAt = Time.unscaledTime + 0.3f;
+                if (Instance) Instance._inactiveTime = 0f;
+            }
+            else
+                _virtualHandDepth = Mathf.Clamp(_virtualHandDepth + wheel * VirtualHandWheelSensitivity,
+                    MinVirtualHandDepth, MaxVirtualHandDepth);
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Hand), "UpdateAnimStates")]
+        private static void ApplyManualPhysicalHandFlex(Hand __instance, Animator ___m_animator,
+            float ___m_flex, Grabbable ___m_grabbedObj, HandPose ___m_grabbedHandPose)
+        {
+            if (!_manualPhysicalHandFlexEnabled || !IsMouseCaptureActive() || !__instance)
+                return;
+            var side = __instance.Handedness == Hand.HANDEDNESS.L ? 0 : 1;
+            PhysicalFlexStatusFrame[side] = Time.frameCount;
+            if (!___m_animator || !___m_animator.isActiveAndEnabled || !___m_animator.runtimeAnimatorController)
+            {
+                PhysicalFlexStatus[side] = "Animator unavailable/inactive";
+                return;
+            }
+            // Animator output only. Native grip and special poses retain priority.
+            if (___m_flex > 0f || ___m_grabbedObj || ___m_grabbedHandPose || ___m_animator.GetInteger("Pose") != 0)
+            {
+                PhysicalFlexStatus[side] = "native grip/pose has priority";
+                return;
+            }
+            ___m_animator.SetFloat("Flex", _manualPhysicalHandFlex);
+            if (!float.IsPositiveInfinity(_flexReportAt))
+                PhysicalFlexStatus[side] = "visual Flex=" + ___m_animator.GetFloat("Flex").ToString("0.00");
+        }
         private static void UpdateVirtualLeftHand()
         {
             if (!IsMouseCaptureActive())
@@ -579,13 +760,28 @@ namespace VRKanojoDesktop
 
             SetVirtualLeftHandInteractionVolumes(true);
 
-            var wheel = Input.GetAxis("Mouse ScrollWheel");
-            if (!Mathf.Approximately(wheel, 0f))
-                _virtualHandDepth = Mathf.Clamp(_virtualHandDepth + wheel * VirtualHandWheelSensitivity, MinVirtualHandDepth, MaxVirtualHandDepth);
+            PositionVirtualLeftHandTarget(cameraTransform);
+            SetVirtualLeftHandInteractionVolumes(_mouseCaptured);
+        }
 
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(IllusionCamera), "LateUpdate")]
+        private static void AfterDesktopCameraLateUpdate(IllusionCamera __instance)
+        {
+            if (!IsMouseCaptureActive() || !OwnsCamera(__instance) ||
+                !_virtualLeftHand || !_virtualLeftController || !_virtualLeftTrackTrans)
+                return;
+            var eye = Camera.main;
+            if (!eye || eye.GetComponentInParent<OVRCameraRig>() != _cameraRig ||
+                !_cameraRig || _cameraRig.GetComponent<IllusionCamera>() != __instance)
+                return;
+            PositionVirtualLeftHandTarget(eye.transform);
+        }
+
+        private static void PositionVirtualLeftHandTarget(Transform cameraTransform)
+        {
             _virtualLeftTrackTrans.position = cameraTransform.position + cameraTransform.forward * _virtualHandDepth;
             _virtualLeftTrackTrans.rotation = cameraTransform.rotation;
-            SetVirtualLeftHandInteractionVolumes(_mouseCaptured);
         }
 
         private static void UpdateHandDepthIndicator()
@@ -597,6 +793,14 @@ namespace VRKanojoDesktop
             _handDepthText.text = string.Format("Hand: {0:0.00} m", _virtualHandDepth);
         }
 
+        private static void UpdateFistIndicator()
+        {
+            if (!_fistText) return;
+            var alpha = Mathf.Clamp01(3f - (Time.unscaledTime - _lastFlexAdjustment));
+            _fistText.enabled = IsMouseCaptureActive() && alpha > 0f;
+            _fistText.text = string.Format("Fist: {0:0}%", _manualPhysicalHandFlex * 100f);
+            _fistText.color = new Color(1f, 1f, 1f, 0.85f * alpha);
+        }
         private static Transform GetVirtualHandCameraTransform()
         {
             if (Camera.main)
@@ -759,6 +963,20 @@ namespace VRKanojoDesktop
             var depthRect = _handDepthText.rectTransform;
             depthRect.sizeDelta = new Vector2(160f, 24f);
 
+            var fistObj = new GameObject("PhysicalFistText");
+            fistObj.transform.parent = crosshairRoot.transform;
+            fistObj.transform.localPosition = new Vector3(0f, -74f, 0f);
+            fistObj.transform.localEulerAngles = Vector3.zero;
+            fistObj.transform.localScale = Vector3.one;
+            _fistText = fistObj.AddComponent<Text>();
+            _fistText.alignment = _handDepthText.alignment;
+            _fistText.font = _handDepthText.font;
+            _fistText.fontSize = _handDepthText.fontSize;
+            _fistText.raycastTarget = false;
+            _fistText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _fistText.verticalOverflow = VerticalWrapMode.Overflow;
+            _fistText.rectTransform.sizeDelta = new Vector2(160f, 24f);
+            UpdateFistIndicator();
             UpdateHandDepthIndicator();
         }
     }
