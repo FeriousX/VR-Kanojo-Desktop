@@ -19,6 +19,7 @@ This project is a modified derivative of ManlyMarco's `VRK_PlayWithoutVR` plugin
 - Separate wheel controls for hand depth, the requested Fist setting, and native action speed.
 - A center crosshair, live `Hand: X.XX m` depth text, and a fading `Fist: XX%` indicator.
 - Cursor confinement, Tab capture/release, and recovery after focus changes.
+- Temporary in-game startup controls guide.
 - Desktop-mode suppression of the Oculus/OVR debug HUD.
 - Core Harmony patch registration checks with explicit startup error logging.
 
@@ -56,68 +57,83 @@ Install only one copy of this plugin. Do not load `VRK_PlayWithoutVR.dll` alongs
 
 Both Shift keys and both Alt keys are recognized for wheel modifiers. **Alt takes priority over Shift** when both are held. Shift sprint has been removed; Shift does not accelerate WASD movement and is used here as the Fist wheel modifier.
 
+### Mouse interactions
+
 Three separate mechanisms share the mouse buttons:
 
 - **Native gaze hands:** LMB operates the left gaze hand and RMB the right where the scene allows them. Both can perform native touch/grab interactions. Click once to activate an available interaction; click the same button again to release/deactivate it. These native interactions do not require continuously holding either mouse button. Availability and release rules remain native and scene-dependent.
-- **Separate physical virtual-hand implementation (technical detail):** the plugin reads held LMB for physical touch and held RMB for grip input; releasing RMB removes that physical grip input. This implementation is unchanged and is not click-to-toggle. It is distinct from the native click-to-toggle interactions above.
+- **Separate physical virtual-hand implementation (technical detail):** the plugin reads held LMB for physical touch and held RMB for grip input; releasing RMB removes that physical grip input. This implementation is unchanged and is not click-to-toggle. It is distinct from the native interactions above.
 - **Native action controls:** LMB requests start/continue and RMB can request stop/finish only where the active native controller/state supports that meaning. A click can have a different meaning in another state; neither button is a universal pause or scene-exit command.
 
 Scrolling while physically grabbing changes the controller target's distance. The 6-meter setting applies to the physical virtual-hand target; native gaze interactions retain their own scene, collider, and range rules.
 
-Alt + Scroll adjusts character action speed/pace, preserving the original signed wheel input and sensitivity. It is not a direct scene-transition command. Native menus, animation timing, dialogue, first-time/story flags, and completion requirements still determine when an operation is available.
-
 Capture is restored after focus recovery only when capture was already requested. Tab release remains respected; focus recovery does not force capture back on after a manual release. Esc is the default native menu key, subject to scene/UI availability.
 
-### Wheel modes
+### Mouse-wheel modes
 
-- **Scroll:** changes only the virtual-hand depth through this plugin.
-- **Shift + Scroll:** changes the requested Fist percentage; visible physical clenching did not work in user testing.
-- **Alt + Scroll:** adjusts character action speed/pace. Alt wins when Shift is also held.
+- **Scroll:** Adjusts virtual-hand depth between 0.15 and 6.00 meters.
+- **Shift + Scroll:** Adjusts the requested Fist percentage between 0% and 100%. Visible physical finger movement remains a known limitation.
+- **Alt + Scroll:** Adjusts character action speed/pace. Alt takes priority when Shift is also held.
 
-### Native actions and progression
+Alt + Scroll preserves the original native wheel input and sensitivity. It is not a dedicated scene-transition command.
 
-In supported scenes and eligible states, LMB starts or continues a native action. In eligible active states, RMB can stop or finish an action. These meanings vary by native controller and current state; neither button is a universal scene-exit command.
+### Native actions and scene progression
 
-Some actions require speed and animation stages before native finishing becomes available. Reaching maximum speed does **not** guarantee that clicking immediately advances the scene. Finishing an action does not necessarily leave the scene. Scene transitions and their requirements remain controlled by the original game.
+In supported scenes and eligible states, LMB starts or continues a native action. RMB can stop or finish an action when the game permits it.
 
-There are **no custom Q, T, or E shortcuts** and no dedicated keyboard scene-transition shortcut. Use the native controls/menu when the game makes finishing available.
+Some actions require progressing through speed and animation stages before finishing becomes available. **Reaching maximum speed does not guarantee that clicking immediately advances the scene.**
 
-### Startup guide
+Finishing an action and exiting a scene are separate operations. Scene progression remains controlled by the original game.
 
-A temporary, noninteractive guide appears at the upper left when the desktop camera is ready and the application is focused. It displays movement, menu, interaction, and wheel controls for 20 seconds from its first display, fading during the final second. Losing focus hides it but does not pause that timer; scene changes do not restart it. It does not capture mouse input or change the crosshair, hand-depth, or Fist HUD. Full state-dependent gameplay notes are provided here rather than crowded onto the guide.
+No custom keyboard scene-transition shortcut is currently implemented.
 
-The original startup instructions used BepInEx message logging and depended on a separate Message Center plugin for in-game display. The guide now draws independently of console/Message Center settings; its log copy uses Info level to avoid duplicate on-screen messages. Logging configuration is unchanged.
+### Startup controls guide
+
+A temporary, noninteractive controls guide appears in the upper-left corner when the desktop camera is ready and the application is focused.
+
+The guide is designed to remain visible for approximately **20 seconds**, fading during its final second.
+
+Losing focus hides the guide without pausing its timer. Scene changes do not restart it.
+
+The guide does not capture mouse input or interfere with the crosshair, hand-depth indicator, or Fist indicator.
+
+The original startup instructions relied on BepInEx logging and a separate Message Center plugin for in-game display. The updated guide renders independently of Message Center, avoiding the earlier loading-time visibility issue.
 
 ## Improvements since v1.0.3
 
-The unreleased v1.0.4 development build incorporates these changes from the tested experimental builds:
+The unreleased **v1.0.4 development build** includes the following improvements:
 
-- Refresh the existing virtual-hand target after the desktop-controlled camera's `LateUpdate()` to improve rotation following.
-- Separate ordinary, Shift-modified, and Alt-modified scrolling.
-- Remove Shift sprint while keeping normal camera movement.
-- Add the fading requested Fist percentage indicator and retain the cosmetic physical-hand Flex output path.
-- Remove experimental keyboard action/scene shortcuts and their temporary diagnostics.
-- Keep core Harmony registration verification and explicit failure reporting; remove the optional shortcut path that previously generated invalid wrapper IL.
-- Replace the startup control instructions with a temporary in-game guide matching the current controls, independent of external message-overlay timing.
+- Improved virtual-hand tracking after camera rotation by synchronizing with the desktop-controlled camera's final `LateUpdate()` pose.
+- Separated ordinary, Shift-modified, and Alt-modified scrolling.
+- Removed Shift sprint while preserving normal camera movement.
+- Added adjustable requested Fist percentage and a fading `Fist: XX%` indicator.
+- Preserved the cosmetic physical-hand Flex output path, although visible finger movement remains unverified.
+- Removed experimental Q/T/E keyboard shortcuts and their temporary diagnostics.
+- Improved Harmony initialization reliability and startup error reporting.
+- Replaced the previous message-based startup instructions with a temporary, independent in-game controls guide.
+- Improved documentation covering native interactions, wheel controls, and gameplay limitations.
 
-The combined cleanup DLL requires manual regression testing after compilation. These notes do not announce a published v1.0.4 release.
+The v1.0.4 development build has been **manually tested** for camera movement, mouse controls, native interactions, wheel controls, and startup-guide visibility. General scene-transition behavior and visible finger animation remain unresolved.
+
+These improvements have not yet been published as an official v1.0.4 release.
 
 ## Known limitations
 
-- **Visible finger clenching is not confirmed working.** Shift + Scroll changes the Fist percentage, but the physical hands did not visibly clench or unclench in the user's tests. Physical hands can be hidden or inactive, native grip/pose animation takes priority, and native gaze-hand models use separate Animators. The percentage is not a measurement of the rendered fingers. No hand visibility is forced.
-- **Scene progression remains native.** Action start, stop/finish, restart, and scene exit are different operations. Their availability varies with scene/controller, animation, dialogue, and story/replay state. No general scene-transition fix is claimed.
-- Native gaze interactions and physical controller grabbing are separate systems; not every target or scene supports the same behavior. There is no dedicated keyboard scene-transition shortcut: Q/E were removed and T is unbound.
-- Wheel separation targets the native action-speed handler. Other native wheel consumers, such as UI or phone controls, retain their own behavior.
-- Other game versions, modified Animator/controllers, and additional mod combinations remain untested and unverified.
+- **Visible finger clenching:** Shift + Scroll changes the requested Fist percentage, but the physical hands have not visibly clenched or unclenched in user testing. Physical hands can be hidden or inactive, native grip animations may take priority, and native gaze-hand models use separate Animators. The displayed percentage does not measure actual rendered finger movement.
+- **Scene progression:** Action start, stop, finishing, restarting, and exiting are different operations. Their availability depends on the scene, active controller, animation state, dialogue, and story/replay conditions. No general scene-transition fix is claimed.
+- **Interaction availability:** Native gaze interactions and physical controller grabbing are separate systems. Not every target or scene supports identical interaction behavior.
+- **Other native wheel consumers:** Wheel separation targets the native action-speed handler. Other wheel-based controls, including certain menus or UI components, may retain their original behavior.
+- **Compatibility:** Other game versions, modified animation controllers, and additional mod combinations have not been verified.
 
 ## Requirements and compatibility
 
-- **Supported game:** original VR Kanojo (2018), tested with **v1.31**.
+- **Supported game:** Original VR Kanojo (2018), tested with **v1.31**.
 - **Unsupported game:** VR-Kanojo (2025).
-- A compatible BepInEx 5 installation. Local builds and tests used BepInEx 5.4.12 and Harmony assembly 2.5.1 with the original game's Unity 5.4.5 runtime.
-- The plugin targets **.NET Framework 3.5 / CLR 2.0** and is built as AnyCPU.
+- **Mod framework:** Compatible BepInEx 5 installation. Local builds and tests used BepInEx 5.4.12 and Harmony assembly 2.5.1 with the original game's Unity 5.4.5 runtime.
+- **Framework target:** .NET Framework 3.5 / CLR 2.0.
+- **Build platform:** AnyCPU.
 
-Published v1.0.3 was manually tested with VR Kanojo v1.31. Later experimental testing established the working movement, hand-following, interactions, wheel modes, and Fist indicator described above. It did not establish visible finger animation or a general scene-progression repair.
+Published v1.0.3 was manually tested with VR Kanojo v1.31. Subsequent experimental testing established the working camera movement, virtual-hand tracking, interactions, wheel modes, and Fist indicator included in the v1.0.4 development build.
 
 This repository does not include the game, proprietary game/Unity assemblies, BepInEx binaries, or game assets.
 
@@ -142,7 +158,9 @@ msbuild .\VRKanojoDesktop\VRKanojoDesktop.csproj /t:Restore /p:Configuration=Rel
 msbuild .\VRKanojoDesktop\VRKanojoDesktop.csproj /t:Build /p:Configuration=Release /p:Platform=AnyCPU
 ```
 
-Alternatively pass `/p:GameDir="C:\Path\To\VRKanojo"` to the build command. The default project output is `bin\VRKanojoDesktop.dll`. Build outputs, dependencies, and runtime logs are excluded from version control.
+Alternatively, pass `/p:GameDir="C:\Path\To\VRKanojo"` to the build command.
+
+The default project output is `bin\VRKanojoDesktop.dll`. Build outputs, dependencies, and runtime logs are excluded from version control.
 
 ## Credits and upstream
 
