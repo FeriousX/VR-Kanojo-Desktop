@@ -2,7 +2,7 @@
 
 Play the **original VR Kanojo (2018)** with a mouse and keyboard, using the game's native interaction systems without a VR headset.
 
-- **Development version:** 1.0.4 — unreleased
+- **Development version:** v1.0.4 released
 - **Latest published stable version:** v1.0.3
 - **Tested game:** VR Kanojo v1.31
 - **Maintainer:** Ferious / FeriousX
